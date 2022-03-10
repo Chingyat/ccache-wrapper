@@ -53,10 +53,7 @@ int execveat(int dirfd, const char *pathname,
 
 static int enable_debug = -1;
 
-#ifdef __GNUC__
-__attribute__((format(printf, 1, 2)))
-#endif
-static void debug_printf(const char *fmt, ...)
+static bool debug_enabled()
 {
 	if (enable_debug == -1) {
 		const char *tmp = getenv("CCACHE_WRAPPER_DEBUG");
@@ -65,13 +62,141 @@ static void debug_printf(const char *fmt, ...)
 		else
 			enable_debug = 0;
 	}
+	return enable_debug;
+}
 
-	if (enable_debug == 1) {
+#ifdef __GNUC__
+__attribute__((format(printf, 1, 2)))
+#endif
+static void debug_printf(const char *fmt, ...)
+{
+	if (debug_enabled()) {
 		va_list ap;
 		va_start(ap, fmt);
 		vfprintf(stderr, fmt, ap);
 		va_end(ap);
 	}
+}
+
+static void debug_print_string_array(char *const arr[])
+{
+	char *const *p = arr;
+	bool first = true;
+
+	if (!arr || !debug_enabled())
+		return;
+
+	fprintf(stderr, "[");
+	while (*p) {
+		if (!first)
+			fprintf(stderr, ", ");
+		first = false;
+		fprintf(stderr, "\"%s\"", *p);
+		++p;
+	}
+	fprintf(stderr, "]");
+}
+
+static void debug_print_variadic_strings(va_list *ap)
+{
+	bool first = true;
+	const char *s;
+
+	do {
+		if (!first)
+			debug_printf(", ");
+		first = false;
+
+		s = va_arg(*ap, const char *);
+
+		if (s != NULL)
+			debug_printf("\"%s\"", s);
+		else
+			debug_printf("NULL");
+	} while (s != NULL);
+}
+
+struct flag_name {
+	int flag;
+	const char *name;
+};
+#define FLAG_NAME(Flag) { .flag = Flag, .name = #Flag }
+
+static const struct flag_name known_flags[] = {
+	FLAG_NAME(AT_EMPTY_PATH),
+	FLAG_NAME(AT_SYMLINK_NOFOLLOW),
+	{ 0, NULL },
+};
+
+static void debug_print_at_flags(int flags)
+{
+	bool first = true;
+	struct flag_name *iter;
+
+	for (iter = known_flags; iter->flag != 0; ++iter) {
+		if (flags & iter->flag) {
+			if (!first)
+				debug_printf("|");
+			first = false;
+			debug_printf("%s", iter->name);
+		}
+	}
+	if (first)
+		debug_printf("0");
+}
+
+static void debug_trace(const char *function, const char *fmt, ...)
+{
+	bool first = true;
+
+	int i;
+	const char *s;
+	char *const *a;
+	va_list *v;
+
+	va_list ap;
+	va_start(ap, fmt);
+
+	debug_printf("%s(", function);
+	while (*fmt) {
+		if (!first)
+			debug_printf(", ");
+		first = false;
+
+		switch (*fmt) {
+		case 'i':
+			i = va_arg(ap, int);
+			debug_printf("%i", i);
+			break;
+		case 's':
+			s = va_arg(ap, const char *);
+			debug_printf("%s", s);
+			break;
+		case 'a':
+			a = va_arg(ap, char *const *);
+			debug_print_string_array(a);
+			break;
+		case 'v':
+			v = va_arg(ap, va_list *);
+			debug_print_variadic_strings(v);
+			if (fmt[1] == 'e') {
+				debug_print_variadic_strings(v);
+				++fmt;
+			}
+			break;
+		case 'f':
+			i = va_arg(ap, int);
+			debug_print_at_flags(i);
+			break;
+		default:
+			debug_printf("?");
+			break;
+		}
+
+		++fmt;
+	}
+	debug_printf(")\n");
+	va_end(ap);
 }
 
 static const char *compiler_names[] = {
@@ -143,6 +268,12 @@ int execl(const char *pathname, const char *arg, ...)
 	va_list ap;
 	char *argv[ARGS_MAX];
 
+	if (debug_enabled()) {
+		va_list v;
+		va_start(v, arg);
+		debug_trace(__func__, "ssv", pathname, arg, &v);
+		va_end(v);
+	}
 	va_start(ap, arg);
 	get_args(&ap, argv, ARGS_MAX);
 	va_end(ap);
@@ -155,6 +286,13 @@ int execlp(const char *file, const char *arg, ...)
 	va_list ap;
 	char *argv[ARGS_MAX];
 
+	if (debug_enabled()) {
+		va_list v;
+		va_start(v, arg);
+		debug_trace(__func__, "ssv", file, arg, &v);
+		va_end(v);
+	}
+	va_start(ap, arg);
 	va_start(ap, arg);
 	get_args(&ap, argv, ARGS_MAX);
 	va_end(ap);
@@ -168,6 +306,13 @@ int execle(const char *pathname, const char *arg, ...)
 	char *argv[ARGS_MAX];
 	char *const* envp;
 
+	if (debug_enabled()) {
+		va_list v;
+		va_start(v, arg);
+		debug_trace(__func__, "ssve", pathname, arg, &v);
+		va_end(v);
+	}
+	va_start(ap, arg);
 	va_start(ap, arg);
 	get_args(&ap, argv, ARGS_MAX);
 	envp = va_arg(ap, char *const *);
@@ -178,11 +323,13 @@ int execle(const char *pathname, const char *arg, ...)
 
 int execv(const char *pathname, char *const argv[])
 {
+	debug_trace(__func__, "sa", pathname, argv);
 	return execve(pathname, argv, environ);
 }
 
 int execvp(const char *file, char *const argv[])
 {
+	debug_trace(__func__, "sa", file, argv);
 	return execvpe(file, argv, environ);
 }
 
@@ -197,6 +344,8 @@ int execvpe(const char *pathname, char *const argv[], char *const envp[])
 	int prefix_len;
 	int i;
 	execve_fn real_execve;
+
+	debug_trace(__func__, "saa", pathname, argv, envp);
 
 	dlerror();
 	real_execve = dlsym(RTLD_NEXT, "execvpe");
@@ -251,6 +400,8 @@ int execve(const char *pathname, char *const argv[], char *const envp[])
 	int i;
 	execve_fn real_execve;
 
+	debug_trace(__func__, "saa", pathname, argv, envp);
+
 	dlerror();
 	real_execve = dlsym(RTLD_NEXT, "execve");
 	if (!real_execve) {
@@ -304,6 +455,8 @@ int fexecve(int fd, char *const argv[], char *const envp[])
 	char pathname[PATH_MAX] = { 0 };
 	fexecve_fn real_fexecve = NULL;
 
+	debug_trace(__func__, "iaa", fd, argv, envp);
+
 	if (is_ccache())
 		goto call_real_fexecve;
 
@@ -352,6 +505,8 @@ int execveat(int dirfd, const char *pathname,
 	int oflags;
 	int fd;
 	int err;
+
+	debug_trace(__func__, "isaaf", dirfd, pathname, argv, envp, flags);
 
 	if (flags & AT_EMPTY_PATH && pathname == NULL)
 		return fexecve(dirfd, argv, envp);
