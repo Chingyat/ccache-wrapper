@@ -51,6 +51,10 @@ int execveat(int dirfd, const char *pathname,
                     int flags);
 /* Implementation */
 
+static int _execve(const char *path, char *const argv[], char *const envp[]);
+static int _execvpe(const char *path, char *const argv[], char *const envp[]);
+static int _fexecve(int fd, char *const argv[], char *const envp[]);
+
 static int enable_debug = -1;
 
 static bool debug_enabled()
@@ -199,6 +203,15 @@ static void debug_trace(const char *function, const char *fmt, ...)
 	va_end(ap);
 }
 
+#define debug_trace_v(Fmt, Last, ...) \
+	do {\
+		va_list _va; \
+		va_start(_va, Last); \
+		debug_trace(__func__, Fmt, __VA_ARGS__, &_va); \
+		va_end(_va); \
+	} while (0)
+
+
 static const char *compiler_names[] = {
 	"cc",
 	"c++",
@@ -268,18 +281,14 @@ int execl(const char *pathname, const char *arg, ...)
 	va_list ap;
 	char *argv[ARGS_MAX];
 
-	if (debug_enabled()) {
-		va_list v;
-		va_start(v, arg);
-		debug_trace(__func__, "ssv", pathname, arg, &v);
-		va_end(v);
-	}
+	debug_trace_v("ssv", arg, pathname, arg);
+
 	argv[0] = (char *)pathname;
 	va_start(ap, arg);
 	get_args(&ap, argv + 1, ARGS_MAX - 1);
 	va_end(ap);
 
-	return execve(pathname, argv, environ);
+	return _execve(pathname, argv, environ);
 }
 
 int execlp(const char *file, const char *arg, ...)
@@ -287,19 +296,15 @@ int execlp(const char *file, const char *arg, ...)
 	va_list ap;
 	char *argv[ARGS_MAX];
 
-	if (debug_enabled()) {
-		va_list v;
-		va_start(v, arg);
-		debug_trace(__func__, "ssv", file, arg, &v);
-		va_end(v);
-	}
+	debug_trace_v("ssv", arg, file, arg);
+
 	argv[0] = (char *)arg;
 	va_start(ap, arg);
 	va_start(ap, arg);
 	get_args(&ap, argv + 1, ARGS_MAX - 1);
 	va_end(ap);
 
-	return execvp(file, argv);
+	return _execvpe(file, argv, environ);
 }
 
 int execle(const char *pathname, const char *arg, ...)
@@ -308,12 +313,7 @@ int execle(const char *pathname, const char *arg, ...)
 	char *argv[ARGS_MAX];
 	char *const* envp;
 
-	if (debug_enabled()) {
-		va_list v;
-		va_start(v, arg);
-		debug_trace(__func__, "ssve", pathname, arg, &v);
-		va_end(v);
-	}
+	debug_trace_v("ssv", arg, pathname, arg);
 
 	argv[0] = (char *)pathname;
 	va_start(ap, arg);
@@ -322,25 +322,30 @@ int execle(const char *pathname, const char *arg, ...)
 	envp = va_arg(ap, char *const *);
 	va_end(ap);
 
-	return execve(pathname, argv, envp);
+	return _execve(pathname, argv, envp);
 }
 
 int execv(const char *pathname, char *const argv[])
 {
 	debug_trace(__func__, "sa", pathname, argv);
-	return execve(pathname, argv, environ);
+	return _execve(pathname, argv, environ);
 }
 
 int execvp(const char *file, char *const argv[])
 {
 	debug_trace(__func__, "sa", file, argv);
-	return execvpe(file, argv, environ);
+	return _execvpe(file, argv, environ);
+}
+
+int execvpe(const char *pathname, char *const argv[], char *const envp[])
+{
+	debug_trace(__func__, "saa", pathname, argv, envp);
+	return _execvpe(pathname, argv, envp);
 }
 
 typedef int (*execve_fn)(const char *, char *const [], char *const []);
 
-
-int execvpe(const char *pathname, char *const argv[], char *const envp[])
+static int _execvpe(const char *pathname, char *const argv[], char *const envp[])
 {
 	char *new_argv[ARGS_MAX];
 	char ccache_path[PATH_MAX] = { 0 };
@@ -349,7 +354,6 @@ int execvpe(const char *pathname, char *const argv[], char *const envp[])
 	int i;
 	execve_fn real_execve;
 
-	debug_trace(__func__, "saa", pathname, argv, envp);
 
 	dlerror();
 	real_execve = dlsym(RTLD_NEXT, "execvpe");
@@ -397,14 +401,18 @@ int execvpe(const char *pathname, char *const argv[], char *const envp[])
 
 int execve(const char *pathname, char *const argv[], char *const envp[])
 {
+	debug_trace(__func__, "saa", pathname, argv, envp);
+	return _execve(pathname, argv, envp);
+}
+
+static int _execve(const char *pathname, char *const argv[], char *const envp[])
+{
 	char *new_argv[ARGS_MAX];
 	char ccache_path[PATH_MAX] = { 0 };
 	char *tmp;
 	int prefix_len;
 	int i;
 	execve_fn real_execve;
-
-	debug_trace(__func__, "saa", pathname, argv, envp);
 
 	dlerror();
 	real_execve = dlsym(RTLD_NEXT, "execve");
@@ -451,15 +459,19 @@ int execve(const char *pathname, char *const argv[], char *const envp[])
 	return real_execve(new_argv[0], new_argv, envp);
 }
 
+int fexecve(int fd, char *const argv[], char *const envp[])
+{
+	debug_trace(__func__, "iaa", fd, argv, envp);
+	return _fexecve(fd, argv, envp);
+}
+
 typedef int (*fexecve_fn)(int, char *const *, char *const *);
 
-int fexecve(int fd, char *const argv[], char *const envp[])
+static int _fexecve(int fd, char *const argv[], char *const envp[])
 {
 	char buffer[sizeof("/proc/self/fd/9999999999")] = { 0 };
 	char pathname[PATH_MAX] = { 0 };
 	fexecve_fn real_fexecve = NULL;
-
-	debug_trace(__func__, "iaa", fd, argv, envp);
 
 	if (is_ccache())
 		goto call_real_fexecve;
@@ -478,7 +490,7 @@ int fexecve(int fd, char *const argv[], char *const envp[])
 	if (!is_compiler(pathname))
 		goto call_real_fexecve;
 
-	return execve(pathname, argv, envp);
+	return _execve(pathname, argv, envp);
 
 call_real_fexecve:
 	dlerror();
@@ -513,7 +525,7 @@ int execveat(int dirfd, const char *pathname,
 	debug_trace(__func__, "isaaf", dirfd, pathname, argv, envp, flags);
 
 	if (flags & AT_EMPTY_PATH && pathname == NULL)
-		return fexecve(dirfd, argv, envp);
+		return _fexecve(dirfd, argv, envp);
 
 	oflags = O_PATH | O_CLOEXEC;
 	if (flags & AT_SYMLINK_NOFOLLOW)
@@ -522,7 +534,7 @@ int execveat(int dirfd, const char *pathname,
 	if (fd < 0)
 		return -1;
 	
-	fexecve(fd, argv, envp);
+	_fexecve(fd, argv, envp);
 	err = errno;
 	close(fd);
 	errno = err;

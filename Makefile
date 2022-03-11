@@ -1,3 +1,5 @@
+SHELL := /bin/sh
+
 EXTRA_CFLAGS := -fPIC -Wall -Wextra -std=gnu89
 EXTRA_LIBS = -ldl
 
