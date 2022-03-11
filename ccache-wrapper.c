@@ -131,7 +131,7 @@ static const struct flag_name known_flags[] = {
 static void debug_print_at_flags(int flags)
 {
 	bool first = true;
-	struct flag_name *iter;
+	const struct flag_name *iter;
 
 	for (iter = known_flags; iter->flag != 0; ++iter) {
 		if (flags & iter->flag) {
@@ -274,8 +274,9 @@ int execl(const char *pathname, const char *arg, ...)
 		debug_trace(__func__, "ssv", pathname, arg, &v);
 		va_end(v);
 	}
+	argv[0] = (char *)pathname;
 	va_start(ap, arg);
-	get_args(&ap, argv, ARGS_MAX);
+	get_args(&ap, argv + 1, ARGS_MAX - 1);
 	va_end(ap);
 
 	return execve(pathname, argv, environ);
@@ -292,9 +293,10 @@ int execlp(const char *file, const char *arg, ...)
 		debug_trace(__func__, "ssv", file, arg, &v);
 		va_end(v);
 	}
+	argv[0] = (char *)arg;
 	va_start(ap, arg);
 	va_start(ap, arg);
-	get_args(&ap, argv, ARGS_MAX);
+	get_args(&ap, argv + 1, ARGS_MAX - 1);
 	va_end(ap);
 
 	return execvp(file, argv);
@@ -312,9 +314,11 @@ int execle(const char *pathname, const char *arg, ...)
 		debug_trace(__func__, "ssve", pathname, arg, &v);
 		va_end(v);
 	}
+
+	argv[0] = (char *)pathname;
 	va_start(ap, arg);
 	va_start(ap, arg);
-	get_args(&ap, argv, ARGS_MAX);
+	get_args(&ap, argv + 1, ARGS_MAX - 1);
 	envp = va_arg(ap, char *const *);
 	va_end(ap);
 
