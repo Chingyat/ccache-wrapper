@@ -239,13 +239,21 @@ static bool is_compiler(const char *file)
 	const char *base = basename_ref(file);
 	const char **compiler = compiler_names;
 
+	bool match = false;
 	for (compiler = compiler_names; *compiler != NULL; ++compiler) {
-		if (strcmp(*compiler, base) == 0) {
-			debug_printf("%s is compiler\n", base);
-			return true;
+		size_t length = strlen(*compiler);
+		if (strncmp(*compiler, base, length) != 0)
+			continue;
+		if (base[length] == '\0') {
+			match = true;
+			break;
+		}	
+		if (base[length] == '-' && atoi(&base[length + 1]) != 0) {
+			match = true;
+			break;
 		}
 	}
-	debug_printf("%s is not compiler\n", base);
+	debug_printf("%s %s compiler\n", base, match ? "is a" : "is not a");
 	return false;
 }
 
