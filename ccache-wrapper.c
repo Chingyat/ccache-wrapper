@@ -524,7 +524,7 @@ int execveat(int dirfd, const char *pathname,
 
 	debug_trace(__func__, "isaaf", dirfd, pathname, argv, envp, flags);
 
-	if (flags & AT_EMPTY_PATH && pathname == NULL)
+	if ((flags & AT_EMPTY_PATH) && strlen(pathname) == 0)
 		return _fexecve(dirfd, argv, envp);
 
 	oflags = O_PATH | O_CLOEXEC;
