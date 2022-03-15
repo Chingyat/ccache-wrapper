@@ -37,5 +37,3 @@ install: $(targets)
 	install -m755 -d $(DESTDIR)$(prefix)/$(bindir)
 	install -m755 -t $(DESTDIR)$(prefix)/$(bindir) ccache-run
 
-	
-

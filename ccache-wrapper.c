@@ -27,6 +27,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <assert.h>
 
 extern char **environ;
 
@@ -104,7 +105,7 @@ static void debug_print_string_array(char *const arr[])
 static void debug_print_variadic_strings(va_list *ap)
 {
 	bool first = true;
-	const char *s;
+	const char *s = NULL;
 
 	do {
 		if (!first)
@@ -135,7 +136,7 @@ static const struct flag_name known_flags[] = {
 static void debug_print_at_flags(int flags)
 {
 	bool first = true;
-	const struct flag_name *iter;
+	const struct flag_name *iter = known_flags;
 
 	for (iter = known_flags; iter->flag != 0; ++iter) {
 		if (flags & iter->flag) {
@@ -153,10 +154,10 @@ static void debug_trace(const char *function, const char *fmt, ...)
 {
 	bool first = true;
 
-	int i;
-	const char *s;
-	char *const *a;
-	va_list *v;
+	int i = 0;
+	const char *s = NULL;
+	char *const *a = NULL;
+	va_list *v = NULL;
 
 	va_list ap;
 	va_start(ap, fmt);
@@ -236,7 +237,7 @@ static const char *basename_ref(const char *pathname)
 static bool is_compiler(const char *file)
 {
 	const char *base = basename_ref(file);
-	const char **compiler;
+	const char **compiler = compiler_names;
 
 	for (compiler = compiler_names; *compiler != NULL; ++compiler) {
 		if (strcmp(*compiler, base) == 0) {
@@ -252,7 +253,7 @@ static bool is_ccache()
 {
 	char buffer[PATH_MAX] = { 0 };
 	ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
-	const char *base;
+	const char *base = NULL;
 	if (len < 0) {
 		debug_printf("readlink(\"/proc/self/exe\", {}, %ld) == %d (%s)",
 				(long)(sizeof(buffer) - 1), errno, strerror(errno));
@@ -265,7 +266,7 @@ static bool is_ccache()
 static size_t get_args(va_list *ap, char **args, size_t args_max)
 {
 	size_t i = 0;
-	char *a;
+	char *a = NULL;
 
 	do {
 		a = va_arg(*ap, char *);
@@ -310,8 +311,8 @@ int execlp(const char *file, const char *arg, ...)
 int execle(const char *pathname, const char *arg, ...)
 {
 	va_list ap;
-	char *argv[ARGS_MAX];
-	char *const* envp;
+	char *argv[ARGS_MAX] = { 0 };
+	char *const* envp = NULL;
 
 	debug_trace_v("ssv", arg, pathname, arg);
 
@@ -322,6 +323,7 @@ int execle(const char *pathname, const char *arg, ...)
 	envp = va_arg(ap, char *const *);
 	va_end(ap);
 
+	assert(envp);
 	return _execve(pathname, argv, envp);
 }
 
@@ -347,12 +349,12 @@ typedef int (*execve_fn)(const char *, char *const [], char *const []);
 
 static int _execvpe(const char *pathname, char *const argv[], char *const envp[])
 {
-	char *new_argv[ARGS_MAX];
+	char *new_argv[ARGS_MAX] = { 0 };
 	char ccache_path[PATH_MAX] = { 0 };
-	char *tmp;
-	int prefix_len;
-	int i;
-	execve_fn real_execve;
+	char *tmp = NULL;
+	int prefix_len = 0;
+	int i = 0;
+	execve_fn real_execve = NULL;
 
 
 	dlerror();
@@ -407,12 +409,12 @@ int execve(const char *pathname, char *const argv[], char *const envp[])
 
 static int _execve(const char *pathname, char *const argv[], char *const envp[])
 {
-	char *new_argv[ARGS_MAX];
+	char *new_argv[ARGS_MAX] = { 0 };
 	char ccache_path[PATH_MAX] = { 0 };
-	char *tmp;
+	char *tmp = NULL;
 	int prefix_len;
-	int i;
-	execve_fn real_execve;
+	int i = 0;
+	execve_fn real_execve = NULL;
 
 	dlerror();
 	real_execve = dlsym(RTLD_NEXT, "execve");
@@ -518,16 +520,15 @@ int execveat(int dirfd, const char *pathname,
                     char *const argv[], char *const envp[],
                     int flags)
 {
-	int oflags;
-	int fd;
-	int err;
+	int oflags = O_PATH | O_CLOEXEC;
+	int fd = -1;
+	int err = 0;
 
 	debug_trace(__func__, "isaaf", dirfd, pathname, argv, envp, flags);
 
 	if ((flags & AT_EMPTY_PATH) && strlen(pathname) == 0)
 		return _fexecve(dirfd, argv, envp);
 
-	oflags = O_PATH | O_CLOEXEC;
 	if (flags & AT_SYMLINK_NOFOLLOW)
 		oflags |= O_NOFOLLOW;
 	fd = openat(dirfd, pathname, oflags);
