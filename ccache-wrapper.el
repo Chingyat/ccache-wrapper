@@ -1,5 +1,4 @@
-;;; ccache-wrapper.el --- Minor mode for compilation with ccache
-;; -*- lexical-binding: t; -*-
+;;; ccache-wrapper.el --- Minor mode for compilation with ccache -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;; Usage:
