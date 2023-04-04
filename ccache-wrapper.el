@@ -31,8 +31,4 @@
     (setq compilation-environment (delete (format "LD_PRELOAD=%s" (expand-file-name ccache-wrapper-path)) compilation-environment))))
 
 (provide 'ccache-wrapper)
-
-
-(provide 'ccache-wrapper)
-
 ;;; ccache-wrapper.el ends here
