@@ -1,5 +1,5 @@
 /* ccache-wrapper.c - automagically invoking ccache.
- * Copyright (C) 2022 Zhengyi Fu <tsingyat@outlook.com>
+ * Copyright (C) 2022, 2023 Zhengyi Fu <tsingyat@outlook.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -247,14 +247,14 @@ static bool is_compiler(const char *file)
 		if (base[length] == '\0') {
 			match = true;
 			break;
-		}	
+		}
 		if (base[length] == '-' && atoi(&base[length + 1]) != 0) {
 			match = true;
 			break;
 		}
 	}
 	debug_printf("%s %s compiler\n", base, match ? "is a" : "is not a");
-	return false;
+	return match;
 }
 
 static bool is_ccache()
@@ -369,7 +369,7 @@ static int _execvpe(const char *pathname, char *const argv[], char *const envp[]
 	real_execve = dlsym(RTLD_NEXT, "execvpe");
 	if (!real_execve) {
 		char const *err = dlerror();
-		debug_printf("dlsym(RTLD_NEXT, \"execpve\") = NULL (%s)\n", err);		
+		debug_printf("dlsym(RTLD_NEXT, \"execpve\") = NULL (%s)\n", err);
 		errno = EINVAL;
 		return -1;
 	}
@@ -428,7 +428,7 @@ static int _execve(const char *pathname, char *const argv[], char *const envp[])
 	real_execve = dlsym(RTLD_NEXT, "execve");
 	if (!real_execve) {
 		char const *err = dlerror();
-		debug_printf("dlsym(RTLD_NEXT, \"execve\") = NULL (%s)\n", err);		
+		debug_printf("dlsym(RTLD_NEXT, \"execve\") = NULL (%s)\n", err);
 		errno = EINVAL;
 		return -1;
 	}
@@ -521,7 +521,7 @@ call_real_fexecve:
 	return real_fexecve(fd, argv, envp);
 }
 
-typedef int (*execveat_fn)(int, const char *, 
+typedef int (*execveat_fn)(int, const char *,
 		char *const*, char *const *, int);
 
 int execveat(int dirfd, const char *pathname,
@@ -542,11 +542,10 @@ int execveat(int dirfd, const char *pathname,
 	fd = openat(dirfd, pathname, oflags);
 	if (fd < 0)
 		return -1;
-	
+
 	_fexecve(fd, argv, envp);
 	err = errno;
 	close(fd);
 	errno = err;
 	return -1;
 }
-
