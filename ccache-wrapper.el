@@ -18,14 +18,21 @@
 ;;; Code:
 (require 'compile)
 
+(defvar ccache-wrapper-debug nil)
+
 (defvar ccache-wrapper-path
   (let ((default-directory (file-name-directory (locate-library "ccache-wrapper.el"))))
     (unless (file-exists-p "ccache-wrapper.so")
       (shell-command "cc -shared -fPIC -O2 -o ccache-wrapper.so ccache-wrapper.c "))
     (expand-file-name "ccache-wrapper.so")))
 
+(defconst ccache-wrapper-compilation-modes '(compilation-mode comint-mode))
+
 (defun ccache-wrapper-environment ()
-  (format "LD_PRELOAD=%s" (expand-file-name ccache-wrapper-path)))
+  (cons (format "LD_PRELOAD=%s" (expand-file-name ccache-wrapper-path))
+        (if ccache-wrapper-debug
+            (list "CCACHE_WRAPPER_DEBUG=1")
+          nil)))
 
 (define-minor-mode ccache-wrapper-mode
   "Minor mode for compilation with `ccache'."
@@ -33,17 +40,20 @@
   :global nil
   :group 'comilation
   (if ccache-wrapper-mode
-      (setq-default compilation-environment (cons (ccache-wrapper-environment)
-                                                  compilation-environment))
-    (setq-default compilation-environment (remove (ccache-wrapper-environment) compilation-environment))))
+      (setq-default compilation-environment (append (ccache-wrapper-environment)
+                                                    compilation-environment))
+    (kill-local-variable 'compilation-environment)))
+
 
 (define-minor-mode global-ccache-wrapper-mode
   "Global minor mode for compilation with `ccache'."
   :global t
   :group 'compilation
   (if global-ccache-wrapper-mode
-      (add-hook 'compilation-mode-hook #'ccache-wrapper-mode)
-    (remove-hook 'compilation-mode-hook #'ccache-wrapper-mode)))
+      (dolist (mode ccache-wrapper-compilation-modes)
+        (add-hook (intern (format "%s-hook" mode)) #'ccache-wrapper-mode))
+    (dolist (mode ccache-wrapper-compilation-modes)
+      (remove-hook (intern (format "%s-hook" mode)) #'ccache-wrapper-mode))))
 
 (provide 'ccache-wrapper)
 ;;; ccache-wrapper.el ends here
