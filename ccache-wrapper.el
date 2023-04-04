@@ -7,8 +7,7 @@
 ;; (use-package ccache-wrapper
 ;;  :demand t
 ;;  :straight (ccache-wrapper :type git :host github :repo "fuzy112/ccache-wrapper"
-;;                            :pre-build "make"
-;;                            :files ("ccache-wrapper.so"
+;;                            :files ("ccache-wrapper.c"
 ;;                                    "ccache-wrapper.el"))
 ;;  :commands (ccache-wrapper-mode)
 ;;  :config
@@ -19,7 +18,11 @@
 ;;; Code:
 (require 'compile)
 
-(defvar ccache-wrapper-path (locate-library "ccache-wrapper.so"))
+(defvar ccache-wrapper-path
+  (let ((default-directory (file-name-directory (locate-library "ccache-wrapper.el"))))
+    (unless (file-exists-p "ccache-wrapper.so")
+      (shell-command "cc -shared -fPIC -O2 -o ccache-wrapper.so ccache-wrapper.c "))
+    (expand-file-name "ccache-wrapper.so")))
 
 (defun ccache-wrapper-environment ()
   (format "LD_PRELOAD=%s" (expand-file-name ccache-wrapper-path)))
