@@ -185,6 +185,7 @@ static void debug_trace(const char *function, const char *fmt, ...)
 			v = va_arg(ap, va_list *);
 			debug_print_variadic_strings(v);
 			if (fmt[1] == 'e') {
+				debug_printf(", ");
 				debug_print_string_array(va_arg(*v, char *const *));
 				++fmt;
 			}
