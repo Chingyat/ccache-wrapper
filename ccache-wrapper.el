@@ -42,8 +42,10 @@
 
 (defvar ccache-wrapper-path
   (let ((default-directory (file-name-directory (locate-library "ccache-wrapper.el"))))
-    (unless (file-exists-p "ccache-wrapper-lib.so")
-      (shell-command "cc -shared -fPIC -O2 -o ccache-wrapper-lib.so ccache-wrapper.c "))
+    (unless (and (file-exists-p "ccache-wrapper-lib.so")
+                 (f-newer-p "ccache-wrapper-lib.so" (file-truename "ccache-wrapper.c")))
+      (shell-command "cc -shared -fPIC -O2 -o ccache-wrapper-lib.so ccache-wrapper.c")
+      (message "Compiled ccache-wrapper-lib.so"))
     (expand-file-name "ccache-wrapper-lib.so")))
 
 (defconst ccache-wrapper-compilation-modes '(compilation-mode comint-mode))
