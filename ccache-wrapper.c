@@ -185,7 +185,7 @@ static void debug_trace(const char *function, const char *fmt, ...)
 			v = va_arg(ap, va_list *);
 			debug_print_variadic_strings(v);
 			if (fmt[1] == 'e') {
-				debug_print_variadic_strings(v);
+				debug_print_string_array(va_arg(*v, char *const *));
 				++fmt;
 			}
 			break;
@@ -309,7 +309,6 @@ int execlp(const char *file, const char *arg, ...)
 
 	argv[0] = (char *)arg;
 	va_start(ap, arg);
-	va_start(ap, arg);
 	get_args(&ap, argv + 1, ARGS_MAX - 1);
 	va_end(ap);
 
@@ -322,10 +321,9 @@ int execle(const char *pathname, const char *arg, ...)
 	char *argv[ARGS_MAX] = { 0 };
 	char *const* envp = NULL;
 
-	debug_trace_v("ssv", arg, pathname, arg);
+	debug_trace_v("ssve", arg, pathname, arg);
 
 	argv[0] = (char *)pathname;
-	va_start(ap, arg);
 	va_start(ap, arg);
 	get_args(&ap, argv + 1, ARGS_MAX - 1);
 	envp = va_arg(ap, char *const *);
