@@ -91,15 +91,15 @@ static void debug_print_string_array(char *const arr[])
 	if (!arr || !debug_enabled())
 		return;
 
-	fprintf(stderr, "[");
+	debug_printf("[");
 	while (*p) {
 		if (!first)
-			fprintf(stderr, ", ");
+			debug_printf(", ");
 		first = false;
-		fprintf(stderr, "\"%s\"", *p);
+		debug_printf("\"%s\"", *p);
 		++p;
 	}
-	fprintf(stderr, "]");
+	debug_printf("]");
 }
 
 static void debug_print_variadic_strings(va_list *ap)
