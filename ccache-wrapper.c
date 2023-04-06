@@ -75,7 +75,7 @@ __attribute__((format(printf, 1, 2)))
 #endif
 static void debug_printf(const char *fmt, ...)
 {
-	if (debug_enabled()) {
+	if (debug_enabled() && isatty(STDERR_FILENO)) {
 		va_list ap;
 		va_start(ap, fmt);
 		vfprintf(stderr, fmt, ap);
