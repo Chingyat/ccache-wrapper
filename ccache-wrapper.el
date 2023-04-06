@@ -57,14 +57,6 @@
             (list "CCACHE_WRAPPER_DEBUG=1")
           nil)))
 
-(defun ccache-wrapper--compilation-start (&rest args)
-  (let ((process-environment (append (if global-ccache-wrapper-mode
-                                         (ccache-wrapper-environment))
-                                     process-environment)))
-    (apply args)))
-
-(advice-add 'compilation-start :around #'ccache-wrapper--compilation-start)
-
 (define-minor-mode ccache-wrapper-mode
   "Minor mode for compilation with `ccache'."
   :lighter " ccache"
@@ -81,6 +73,15 @@
         (add-hook (intern (format "%s-hook" mode)) #'ccache-wrapper-mode))
     (dolist (mode ccache-wrapper-compilation-modes)
       (remove-hook (intern (format "%s-hook" mode)) #'ccache-wrapper-mode))))
+
+
+(defun ccache-wrapper--compilation-start (&rest args)
+  (let ((process-environment (append (if global-ccache-wrapper-mode
+                                         (ccache-wrapper-environment))
+                                     process-environment)))
+    (apply args)))
+
+(advice-add 'compilation-start :around #'ccache-wrapper--compilation-start)
 
 (provide 'ccache-wrapper)
 ;;; ccache-wrapper.el ends here
