@@ -37,6 +37,7 @@
 ;;; Code:
 
 (require 'compile)
+(require 'f)
 
 (defvar ccache-wrapper-debug nil)
 
@@ -56,15 +57,19 @@
             (list "CCACHE_WRAPPER_DEBUG=1")
           nil)))
 
+(defun ccache-wrapper--compilation-start (&rest args)
+  (let ((process-environment (append (if global-ccache-wrapper-mode
+                                         (ccache-wrapper-environment))
+                                     process-environment)))
+    (apply args)))
+
+(advice-add 'compilation-start :around #'ccache-wrapper--compilation-start)
+
 (define-minor-mode ccache-wrapper-mode
   "Minor mode for compilation with `ccache'."
   :lighter " ccache"
   :global nil
-  :group 'comilation
-  (if ccache-wrapper-mode
-      (setq-default compilation-environment (append (ccache-wrapper-environment)
-                                                    compilation-environment))
-    (kill-local-variable 'compilation-environment)))
+  :group 'compilation)
 
 
 (define-minor-mode global-ccache-wrapper-mode
