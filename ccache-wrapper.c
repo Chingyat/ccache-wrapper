@@ -175,7 +175,7 @@ static void debug_trace(const char *function, const char *fmt, ...)
 			break;
 		case 's':
 			s = va_arg(ap, const char *);
-			debug_printf("%s", s);
+			debug_printf("\"%s\"", s);
 			break;
 		case 'a':
 			a = va_arg(ap, char *const *);
