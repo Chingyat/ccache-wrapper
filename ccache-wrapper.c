@@ -424,7 +424,7 @@ static int _execve(const char *pathname, char *const argv[], char *const envp[])
 	execve_fn real_execve = NULL;
 
 	dlerror();
-	real_execve = dlsym(RTLD_NEXT, "execve");
+	real_execve = dlsym(RTLD_NEXT, "execvpe");
 	if (!real_execve) {
 		char const *err = dlerror();
 		debug_printf("dlsym(RTLD_NEXT, \"execve\") = NULL (%s)\n", err);
@@ -437,13 +437,17 @@ static int _execve(const char *pathname, char *const argv[], char *const envp[])
 
 	tmp = getenv("CCACHE_PATH");
 	if (!tmp) {
-		new_argv[0] = "/usr/bin/env";
-		new_argv[1] = "ccache";
-		prefix_len = 2;
+		new_argv[0] = "ccache";
+		prefix_len = 1;
 	} else {
 		strncpy(ccache_path, tmp, sizeof(ccache_path) - 1);
 		new_argv[0] = ccache_path;
 		prefix_len = 1;
+	}
+
+	if (strchr(pathname, '/') == NULL) {
+		errno = ENOENT;
+		return -1;
 	}
 
 	i = 0;
