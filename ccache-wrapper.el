@@ -45,7 +45,7 @@
   (let ((default-directory (file-name-directory (locate-library "ccache-wrapper.el"))))
     (unless (and (file-exists-p "ccache-wrapper-lib.so")
                  (f-newer-p "ccache-wrapper-lib.so" (file-truename "ccache-wrapper.c")))
-      (shell-command "cc -shared -fPIC -O2 -o ccache-wrapper-lib.so ccache-wrapper.c")
+      (shell-command "cc -shared -fPIC -O2 -o ccache-wrapper-lib.so ccache-wrapper.c -ldl")
       (message "Compiled ccache-wrapper-lib.so"))
     (expand-file-name "ccache-wrapper-lib.so")))
 
