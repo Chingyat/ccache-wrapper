@@ -37,22 +37,31 @@
 ;;; Code:
 
 (require 'compile)
-(require 'f)
 
 (defvar ccache-wrapper-debug nil)
 
-(defvar ccache-wrapper-path
+(defconst ccache-wrapper-compilation-modes '(compilation-mode comint-mode))
+
+(defun ccache-wrapper--file-time (file)
+  (let* ((attr (file-attributes file))
+         (time (file-attribute-modification-time attr))
+         (integer-time (time-convert time 'integer)))
+    integer-time))
+
+(defun ccache-wrapper--file-newer-p (file other)
+  (> (ccache-wrapper--file-time file)
+     (ccache-wrapper--file-time other)))
+
+(defun ccache-wrapper-path ()
   (let ((default-directory (file-name-directory (locate-library "ccache-wrapper.el"))))
     (unless (and (file-exists-p "ccache-wrapper-lib.so")
-                 (f-newer-p "ccache-wrapper-lib.so" (file-truename "ccache-wrapper.c")))
+                 (ccache-wrapper--file-newer-p "ccache-wrapper-lib.so" (file-truename "ccache-wrapper.c")))
       (shell-command "cc -shared -fPIC -O2 -o ccache-wrapper-lib.so ccache-wrapper.c -ldl")
       (message "Compiled ccache-wrapper-lib.so"))
     (expand-file-name "ccache-wrapper-lib.so")))
 
-(defconst ccache-wrapper-compilation-modes '(compilation-mode comint-mode))
-
 (defun ccache-wrapper-environment ()
-  (cons (format "LD_PRELOAD=%s" (expand-file-name ccache-wrapper-path))
+  (cons (format "LD_PRELOAD=%s" (ccache-wrapper-path))
         (if ccache-wrapper-debug
             (list "CCACHE_WRAPPER_DEBUG=1")
           nil)))
