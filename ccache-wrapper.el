@@ -31,7 +31,7 @@
 ;;  :commands (ccache-wrapper-mode)
 ;;  :config
 ;;  (ccache-wrapper-mode +1))
-;; #+end_src elisp
+;; #+end_src
 ;;
 
 ;;; Code:
