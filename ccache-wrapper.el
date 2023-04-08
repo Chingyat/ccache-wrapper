@@ -40,8 +40,6 @@
 
 (defvar ccache-wrapper-debug nil)
 
-(defconst ccache-wrapper-compilation-modes '(compilation-mode comint-mode))
-
 (defun ccache-wrapper--file-time (file)
   (let* ((attr (file-attributes file))
          (time (file-attribute-modification-time attr))
@@ -76,12 +74,7 @@
 (define-minor-mode global-ccache-wrapper-mode
   "Global minor mode for compilation with `ccache'."
   :global t
-  :group 'compilation
-  (if global-ccache-wrapper-mode
-      (dolist (mode ccache-wrapper-compilation-modes)
-        (add-hook (intern (format "%s-hook" mode)) #'ccache-wrapper-mode))
-    (dolist (mode ccache-wrapper-compilation-modes)
-      (remove-hook (intern (format "%s-hook" mode)) #'ccache-wrapper-mode))))
+  :group 'compilation)
 
 
 (defun ccache-wrapper--compilation-start (&rest args)
@@ -91,6 +84,16 @@
     (apply args)))
 
 (advice-add 'compilation-start :around #'ccache-wrapper--compilation-start)
+
+(defun ccache-wrapper--compilation-setup (&rest _)
+  (if global-ccache-wrapper-mode
+      (ccache-wrapper-mode +1)))
+
+(defun ccache-wrapper--compilation-unsetup (&rest _)
+  (ccache-wrapper-mode -1))
+
+(advice-add 'compilation-setup :after #'ccache-wrapper--compilation-setup)
+(advice-add 'compilation--unsetup :before #'ccache-wrapper--compilation-unsetup)
 
 (provide 'ccache-wrapper)
 ;;; ccache-wrapper.el ends here
