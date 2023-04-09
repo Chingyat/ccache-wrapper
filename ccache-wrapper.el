@@ -60,7 +60,7 @@
 (defvar ccache-wrapper--path nil)
 
 (defun ccache-wrapper--path ()
-  (if (and ccache-wrapper--path (ccache-wrapper--file-equal-remote-p ccache-wrapper--path default-directory))
+  (if (and ccache-wrapper--path (file-exists-p ccache-wrapper--path) (ccache-wrapper--file-equal-remote-p ccache-wrapper--path default-directory))
       ccache-wrapper--path
     (setq ccache-wrapper--path
           (let ((c-src (make-nearby-temp-file "ccache-wrapper" nil ".c"))
