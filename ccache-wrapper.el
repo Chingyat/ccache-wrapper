@@ -50,16 +50,28 @@
   (> (ccache-wrapper--file-time file)
      (ccache-wrapper--file-time other)))
 
-(defun ccache-wrapper-path ()
+(defun ccache-wrapper--locate-c-file ()
   (let ((default-directory (file-name-directory (locate-library "ccache-wrapper.el"))))
-    (unless (and (file-exists-p "ccache-wrapper-lib.so")
-                 (ccache-wrapper--file-newer-p "ccache-wrapper-lib.so" (file-truename "ccache-wrapper.c")))
-      (shell-command "cc -shared -fPIC -O2 -o ccache-wrapper-lib.so ccache-wrapper.c -ldl")
-      (message "Compiled ccache-wrapper-lib.so"))
-    (expand-file-name "ccache-wrapper-lib.so")))
+    (file-truename "ccache-wrapper.c")))
+
+(defun ccache-wrapper--file-equal-remote-p (file1 file2)
+  (equal (file-remote-p file1) (file-remote-p file2)))
+
+(defvar ccache-wrapper--path nil)
+
+(defun ccache-wrapper--path ()
+  (if (and ccache-wrapper--path (ccache-wrapper--file-equal-remote-p ccache-wrapper--path default-directory))
+      ccache-wrapper--path
+    (setq ccache-wrapper--path
+          (let ((c-src (make-nearby-temp-file "ccache-wrapper" nil ".c"))
+                (so-file (make-nearby-temp-file "ccache-wrapper--" nil ".so")))
+            (copy-file (ccache-wrapper--locate-c-file) c-src t)
+            (process-file "cc" nil (get-buffer-create " *ccache-wrapper*") nil
+                          "-shared" "-O2" "-fPIC" "-o" (file-local-name so-file) (file-local-name c-src) "-ldl")
+            so-file))))
 
 (defun ccache-wrapper-environment ()
-  (cons (format "LD_PRELOAD=%s" (ccache-wrapper-path))
+  (cons (format "LD_PRELOAD=%s" (file-local-name (ccache-wrapper--path)))
         (if ccache-wrapper-debug
             (list "CCACHE_WRAPPER_DEBUG=1")
           nil)))
@@ -70,12 +82,10 @@
   :global nil
   :group 'compilation)
 
-
 (define-minor-mode global-ccache-wrapper-mode
   "Global minor mode for compilation with `ccache'."
   :global t
   :group 'compilation)
-
 
 (defun ccache-wrapper--compilation-start (&rest args)
   (let ((process-environment (append (if global-ccache-wrapper-mode
