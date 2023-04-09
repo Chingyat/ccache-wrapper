@@ -82,13 +82,18 @@
   :global nil
   :group 'compilation)
 
+;;;###autoload
 (define-minor-mode global-ccache-wrapper-mode
   "Global minor mode for compilation with `ccache'."
   :global t
   :group 'compilation)
 
+(defun ccache-wrapper--has-c-compiler ()
+  (and global-ccache-wrapper-mode
+       (executable-find "cc" t)))
+
 (defun ccache-wrapper--compilation-start (&rest args)
-  (let ((process-environment (append (if global-ccache-wrapper-mode
+  (let ((process-environment (append (if (ccache-wrapper--has-c-compiler)
                                          (ccache-wrapper-environment))
                                      process-environment)))
     (apply args)))
@@ -96,7 +101,7 @@
 (advice-add 'compilation-start :around #'ccache-wrapper--compilation-start)
 
 (defun ccache-wrapper--compilation-setup (&rest _)
-  (if global-ccache-wrapper-mode
+  (if (ccache-wrapper--has-c-compiler)
       (ccache-wrapper-mode +1)))
 
 (defun ccache-wrapper--compilation-unsetup (&rest _)
