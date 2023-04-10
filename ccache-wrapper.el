@@ -101,8 +101,9 @@
 (advice-add 'compilation-start :around #'ccache-wrapper--compilation-start)
 
 (defun ccache-wrapper--compilation-setup (&rest _)
-  (if (ccache-wrapper--has-c-compiler)
-      (ccache-wrapper-mode +1)))
+  (and global-ccache-wrapper-mode
+       (ccache-wrapper--has-c-compiler)
+       (ccache-wrapper-mode +1)))
 
 (defun ccache-wrapper--compilation-unsetup (&rest _)
   (ccache-wrapper-mode -1))
