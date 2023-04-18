@@ -83,22 +83,22 @@
   :group 'compilation)
 
 ;;;###autoload
-(define-minor-mode global-ccache-wrapper-mode
-  "Global minor mode for compilation with `ccache'."
-  :global t
-  :group 'compilation)
+(progn
+  (define-minor-mode global-ccache-wrapper-mode
+    "Global minor mode for compilation with `ccache'."
+    :global t
+    :group 'compilation))
 
 (defun ccache-wrapper--has-c-compiler ()
   (and global-ccache-wrapper-mode
        (executable-find "cc" t)))
 
+;;;###autoload
 (defun ccache-wrapper--compilation-start (&rest args)
   (let ((process-environment (append (if (ccache-wrapper--has-c-compiler)
                                          (ccache-wrapper-environment))
                                      process-environment)))
     (apply args)))
-
-(advice-add 'compilation-start :around #'ccache-wrapper--compilation-start)
 
 (defun ccache-wrapper--compilation-setup (&rest _)
   (and global-ccache-wrapper-mode
@@ -108,8 +108,12 @@
 (defun ccache-wrapper--compilation-unsetup (&rest _)
   (ccache-wrapper-mode -1))
 
-(advice-add 'compilation-setup :after #'ccache-wrapper--compilation-setup)
-(advice-add 'compilation--unsetup :before #'ccache-wrapper--compilation-unsetup)
+;;;###autoload
+(progn
+  (advice-add 'compilation-start :around #'ccache-wrapper--compilation-start)
+  (advice-add 'compilation-setup :after #'ccache-wrapper--compilation-setup)
+  (advice-add 'compilation--unsetup :before #'ccache-wrapper--compilation-unsetup))
+
 
 (provide 'ccache-wrapper)
 ;;; ccache-wrapper.el ends here
