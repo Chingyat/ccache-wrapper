@@ -20,20 +20,6 @@
 
 ;;; Commentary:
 
-;; Usage:
-;; Add the following code to `init.el' file.
-;; #+begin_src elisp
-;; (use-package ccache-wrapper
-;;  :demand t
-;;  :straight (ccache-wrapper :type git :host github :repo "fuzy112/ccache-wrapper"
-;;                            :files ("ccache-wrapper.c"
-;;                                    "ccache-wrapper.el"))
-;;  :commands (ccache-wrapper-mode)
-;;  :config
-;;  (ccache-wrapper-mode +1))
-;; #+end_src
-;;
-
 ;;; Code:
 
 (require 'compile)
