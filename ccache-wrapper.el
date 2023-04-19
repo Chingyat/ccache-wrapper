@@ -86,6 +86,7 @@
                                      process-environment)))
     (apply args)))
 
+;;;###autoload
 (defun ccache-wrapper--compilation-setup (&rest _)
   (and global-ccache-wrapper-mode
        (ccache-wrapper--has-c-compiler)
