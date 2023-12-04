@@ -77,6 +77,7 @@
 
 (defun ccache-wrapper--has-c-compiler ()
   (and global-ccache-wrapper-mode
+       (executable-find "ccache" t)
        (executable-find "cc" t)))
 
 ;;;###autoload
